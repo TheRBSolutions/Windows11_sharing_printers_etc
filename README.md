@@ -62,3 +62,126 @@ Windows Registry Editor Version 5.00
 "UpdatePromptSettings"=dword:00000002
 
 Action: Run the .reg file, then run the PowerShell command below to restart the spooler.
+
+
+
+⚙️ Step 2 — Essential Service Restart (PowerShell)
+
+After applying the registry fixes, the Print Spooler service must be restarted on the respective PC.
+
+Run on both Host and Client (in an Elevated PowerShell/CMD):
+PowerShell
+
+net stop spooler
+net start spooler
+
+🧱 Step 3 — SMB1 Compatibility (Legacy Printers)
+
+Enable this only if necessary for older hardware. (⚠️ SMB1 is insecure)
+
+Run on Host and/or Client (in Elevated PowerShell):
+PowerShell
+
+Enable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -All -NoRestart
+# A system reboot is typically required after running this command.
+
+🧰 Step 4 — Group Policy Fixes (Client PC)
+
+Run gpedit.msc → navigate to: Computer Configuration > Administrative Templates > Printers
+
+    Point and Print Restrictions → Enabled
+
+        Set all prompts to: Do not show warning or elevation prompt
+
+        Trusted Servers: Add your print server name (e.g., FAREED-PC)
+
+    Package Point and Print - Approved Servers → Disabled
+
+Then update policies and reboot:
+Bash
+
+gpupdate /force
+
+🌐 Step 5 — Network Profile & Discovery
+
+Ensure both systems are on Private network and discovery is enabled.
+
+    Settings → Network & Internet → Properties.
+
+    Set Network Profile = Private.
+
+    Enable Network discovery and File and printer sharing.
+
+⚙️ Step 6 — Dependency Services Check
+
+Open services.msc and ensure Print Spooler, Remote Procedure Call (RPC), Function Discovery Resource Publication, and SSDP Discovery are Running and Automatic.
+
+🔐 Step 7 — Automation: Firewall & SMB Signature
+
+These commands are crucial for connectivity and should be run in an Elevated PowerShell on the Print Server (Host) PC.
+
+7.1. Disable SMB Signing/Encryption (Bypass)
+
+PowerShell
+
+# **WARNING: Disabling signature/encryption reduces security for all shares on this server.**
+Set-SmbServerConfiguration -RequireSecuritySignature $false -Force
+Set-SmbServerConfiguration -EncryptData $false -Force
+
+7.2. Create Firewall Exceptions (Persistent Allow Rules)
+
+PowerShell
+
+# Allow SMB and RPC ports for printer sharing
+netsh advfirewall firewall set rule group="File and Printer Sharing" new enable=yes
+netsh advfirewall firewall add rule name="Allow RPC EPM Port 135" dir=in action=allow protocol=TCP localport=135 enable=yes
+
+# Allow the Spooler Service executable itself
+netsh advfirewall firewall add rule name="Allow Spoolsv.exe" dir=in action=allow program="%systemroot%\System32\spoolsv.exe" enable=yes
+
+🧱 Step 8 — Clear Spooler Cache (PowerShell)
+
+Use this command to clear stuck jobs or a corrupt spooler state on either PC.
+
+Run on both Host and Client (in Elevated PowerShell):
+PowerShell
+
+# Stop the Print Spooler service
+net stop spooler
+# Delete all queued print jobs and temporary driver files
+Remove-Item -Path "$env:systemroot\System32\spool\PRINTERS\*" -Force
+Remove-Item -Path "$env:systemroot\System32\spool\DRIVERS\*" -Force
+# Start the Print Spooler service
+net start spooler
+
+🧠 Step 9 — Manual Printer Add (Bypass)
+
+If all sharing methods fail, connect the client directly to the printer's IP.
+
+    Settings → Bluetooth & Devices → Printers → Add Device → Add manually.
+
+    Choose: “Create a new port → Standard TCP/IP Port”.
+
+    Enter printer IP (e.g., 192.168.1.10). Install driver manually.
+
+🔐 Step 10 — Credential Manager Setup
+
+Add explicit credentials for the host PC login to the client's Credential Manager → Windows Credentials.
+
+    Network address: \\FAREED-PC
+
+    Username: host PC login username
+
+    Password: host PC login password
+
+✅ Quick Recap (Checklist)
+
+
+Check,Description
+🔸 Host Registry,Host_Fix.reg applied and Spooler restarted.
+🔸 Client Registry,Client_Fix.reg applied and Spooler restarted.
+🔸 Firewall/SMB,SMB Signing disabled and Firewall rules applied on Host.
+🔸 Network Profile,Set to Private on both.
+🔸 Point and Print,Policies/Registry configured on Client.
+🔸 Credential,Explicitly added in Credential Manager.
+🔸 Manual IP Port,Test successful (Step 9).
