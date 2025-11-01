@@ -1,6 +1,131 @@
 # Windows 11 Network Printer Connection Fix Guide
 
+# 🖨️ Windows Network Printer Fix Guide (Advanced Settings)
 
+The images you've provided show advanced system configuration steps (Registry, Group Policy, and Windows Features) often used to resolve complex network printer sharing errors like 0x0000011b, 0x00000709, or RPC communication failures.
+
+These steps involve modifying Windows' security and network protocols. Apply the server steps **ONLY** to the PC that is **SHARING** the printer (the Server PC). Client steps apply to the PC(s) attempting to connect to the shared printer.
+
+**Important Notes:**
+- Always back up your registry before making changes.
+- These fixes are based on common resolutions for the mentioned errors, which often stem from security updates or protocol mismatches.
+- After applying changes, test printing from the client to verify.
+- If issues persist, run the built-in Printer Troubleshooter on both PCs (search for "troubleshoot" in Settings).
+
+## 1. Server PC Configuration (Sharing PC)
+
+1. **⚙️ Enable LPR Port Monitor (Windows Features)**  
+   This ensures the Line Printer Remote (LPR) protocol, an alternative printing service, is active. This step is shown in image 1000395273.jpg and should be done on the Server PC.  
+   - Open the Run dialog (Win + R) and type `optionalfeatures` (or search for *Turn Windows features on or off*).  
+   - Expand *Print and Document Services*.  
+   - Check the box next to *LPR Port Monitor*.  
+   - Click OK and restart the PC if prompted.  
+   > Note: While not strictly required for SMB/RPC sharing, enabling LPR provides a fallback mechanism and ensures all print services are available.
+
+2. **📝 Configure RPC over TCP Port (Group Policy)**  
+   This step (image 1000395272.jpg) configures the port used for RPC communication, which the Print Spooler service uses. This must be done on the Server PC.  
+   - Open the Run dialog (Win + R) and type `gpedit.msc` to open the Local Group Policy Editor.  
+   - Navigate to:  
+     Computer Configuration > Administrative Templates > Printers.  
+   - Find and double-click the policy setting: *Configure RPC over TCP port*.  
+   - Set the policy to *Enabled*.  
+   - In the option box, enter a specific, unused TCP port number (e.g., 9100 or 50000).  
+   > Note: Configuring a static port is often necessary if firewalls are blocking the dynamic RPC ports.  
+   - Click OK.  
+   - Open Command Prompt (as Admin) and run `gpupdate /force` to apply the changes.
+
+3. **🛡️ Registry Configuration for RPC Communication**  
+   These registry modifications are related to forcing the Print Spooler to use specific communication protocols.  
+
+   **A. Configure RPC over TCP and Named Pipes (image 1000395271.jpg)**  
+   - Open the Run dialog (Win + R) and type `regedit` to open the Registry Editor.  
+   - Navigate to:  
+     `HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC`  
+     > If the RPC key does not exist under Printers, you must create it.  
+   - Create or modify the following DWORD (32-bit) values:  
+     - *RpcOverTCP*  
+       - Type: REG_DWORD  
+       - Value: 0 (Zero)  
+     - *RpcUseNamedPipeProtocol*  
+       - Type: REG_DWORD  
+       - Value: 1 (One)  
+
+   **B. Configure Print Spooler Execution (Images 1000395274.jpg & 1000395275.jpg)**  
+   These steps relate to permissions and default printer settings.  
+   - Navigate to:  
+     `HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\Windows`  
+   - Check Permissions: Right-click the Windows key and select *Permissions...* (image 1000395275.jpg).  
+     - Ensure *ALL APPLICATION PACKAGES* has *Read* permissions allowed.  
+   - Ensure the following DWORD is set (as shown in image 1000395274.jpg):  
+     - *LegacyDefaultPrinterMode*  
+       - Type: REG_DWORD  
+       - Value: 1 (One)
+
+4. **🚀 Final Step: Restart Services on Server**  
+   After applying all the changes (especially the Group Policy and Registry edits), you must restart the Print Spooler service and the computer.  
+   - Open PowerShell or Command Prompt as an Administrator.  
+   - Stop and restart the Spooler service:  
+     ```
+     net stop spooler
+     net start spooler
+     ```  
+   - Restart the Server PC to ensure all Group Policy and Registry changes take full effect.
+
+## 2. Client PC Configuration (Connecting PC)
+
+After applying the server fixes, perform these steps on the Client PC to connect to the shared printer. These address common client-side issues like driver restrictions, network discovery, and connection errors.
+
+1. **🛡️ Registry Configuration for Point and Print (Optional but Recommended for Error 0x0000011b)**  
+   This relaxes driver installation restrictions imposed by security updates.  
+   - Open the Run dialog (Win + R) and type `regedit` to open the Registry Editor.  
+   - Navigate to:  
+     `HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\PointAndPrint`  
+     > If the PointAndPrint key does not exist, create it (right-click Printers > New > Key).  
+   - Create or modify the following DWORD (32-bit) value:  
+     - *RestrictDriverInstallationToAdministrators*  
+       - Type: REG_DWORD  
+       - Value: 0 (Zero)  
+   - Close the Registry Editor and restart the Client PC.
+
+2. **🌐 Enable Network Discovery and File/Printer Sharing**  
+   Ensure the client can discover and access shared resources.  
+   - Open Settings (Win + I) > Network & Internet > Status > Change adapter options (or search for "Network and Sharing Center").  
+   - Click *Change advanced sharing settings* on the left.  
+   - Under Private (or current profile):  
+     - Turn on *Network discovery*.  
+     - Turn on *File and printer sharing*.  
+   - Save changes.  
+   - In Windows Firewall (search for "firewall"), ensure *File and Printer Sharing* is allowed for Private networks.
+
+3. **📥 Add the Shared Printer**  
+   - Open Settings (Win + I) > Devices (or Bluetooth & devices) > Printers & scanners.  
+   - Click *Add a printer or scanner*. Wait for it to search.  
+   - If the printer doesn't appear, click *The printer that I want isn't listed*.  
+   - Select *Select a shared printer by name* and enter the UNC path: `\\ServerPCName\PrinterShareName` (replace with actual names).  
+   - Follow the prompts to install drivers if prompted.  
+   > Alternative: If direct addition fails, add via local port:  
+   > - Choose *Add a local printer or network printer with manual settings*.  
+   > - Select *Create a new port* > Type: *Local Port*.  
+   > - For Port Name, enter `\\ServerPCName\PrinterShareName`.  
+   > - Select the printer driver or let Windows install it.
+
+4. **🚀 Restart Services on Client**  
+   - Open PowerShell or Command Prompt as an Administrator.  
+   - Stop and restart the Spooler service:  
+     ```
+     net stop spooler
+     net start spooler
+     ```  
+   - Restart the Client PC if needed.
+
+5. **Additional Troubleshooting (If Errors Persist)**  
+   - Check for Windows Updates on the Client PC: Settings > Update & Security > Windows Update > Check for updates. Install any available.  
+   - If a recent update caused the issue, uninstall it: View update history > Uninstall updates (e.g., look for KB updates related to printing).  
+   - Run the Printer Troubleshooter: Settings > Update & Security > Troubleshoot > Additional troubleshooters > Printer > Run the troubleshooter.  
+   - Ensure both PCs are on the same network and workgroup (Control Panel > System > Change settings > Computer name).  
+   - For RPC failures, verify the static port (from server step 2) is open in the client's firewall if using TCP.
+
+These steps should resolve most connection issues. If you encounter specific errors during testing, provide details for further assistance.
 
 ---
 
