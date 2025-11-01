@@ -313,7 +313,7 @@ Write-Host "`n[Info] Done. Use Printer-Troubleshoot.ps1 for full export." -Foreg
 
 ```
 
-How to Save & Run (Step-by-Step)
+## How to Save & Run (Step-by-Step)
 Save the Files
 
 Open Notepad (or VS Code)
@@ -333,7 +333,7 @@ Option 1: Right-Click (Easiest)
 Right-click .ps1 file → "Run with PowerShell"
 If blocked → use Option 2
 
-Option 2: PowerShell (Admin)
+## Option 2: PowerShell (Admin)
 powershell
 
 # Allow local scripts (once)
