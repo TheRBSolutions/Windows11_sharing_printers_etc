@@ -190,6 +190,29 @@ Add explicit credentials:
 - **Username:** host PC login username
 - **Password:** host PC login password
 
+## 🔐 Step 11:
+🧭 1️⃣ Event Viewer — Printer Connection Logs
+📂 Path 1: Operational Printer Logs
+
+Open Event Viewer →
+Applications and Services Logs → Microsoft → Windows → PrintService → Operational
+
+If you don’t see it:
+
+Right-click PrintService → Operational → Enable Log
+
+Now this log records all printer connection, driver, and spooler events.
+
+📋 Key Event IDs to Check
+Event ID	Meaning
+808	Print queue created successfully
+819 / 808	Client printer connection attempted
+616 / 808 / 808	Connection or driver install failed
+821	Printer driver installation failure
+808 / 821 / 808	“Couldn’t connect to printer” or 0x00000709 / 0x0000011b
+307	Job sent successfully (for testing print)
+310 / 372	Print job failed or incomplete
+
 ---
 
 ## ✅ Quick Checklist
@@ -197,6 +220,7 @@ Add explicit credentials:
 | ✓ | Task |
 |---|------|
 | ☐ | Profiles updated to private |
+| ☐ | See Events Logs  |
 | ☐ | Host Registry applied & Spooler restarted |
 | ☐ | Client Registry applied & Spooler restarted |
 | ☐ | SMB Signing disabled & Firewall rules applied |
