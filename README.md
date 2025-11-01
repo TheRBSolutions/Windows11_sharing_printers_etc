@@ -41,6 +41,8 @@ Resolves **"Couldn't connect to the printer"** or **Error 0x00000709** caused by
 
 ### Host (Server) Fixes
 **Apply to PC sharing the printer:**
+The registry keys you provided are related to settings Microsoft implemented after the PrintNightmare security vulnerabilities (CVE-2021-1678 and CVE-2021-34481) to secure the Windows Print Spooler service.
+Are known workarounds to resolve network printer connection errors (like 0x0000011b)
 
 ```reg
 ; Save as Host_Fix.reg and run
