@@ -327,11 +327,11 @@ Copy second script → Paste → Save As
 Save both in: C:\Scripts\ (create folder) or Desktop
 
 
-Run the Scripts
+**Run the Scripts
 Option 1: Right-Click (Easiest)
 
 Right-click .ps1 file → "Run with PowerShell"
-If blocked → use Option 2
+If blocked → use Option 2**
 
 ## Option 2: PowerShell (Admin)
 powershell
