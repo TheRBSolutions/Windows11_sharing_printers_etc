@@ -200,6 +200,7 @@ Here is the **final, clean, non-redundant Markdown document** — fully updated 
 - Added **"helpline" note** under **Log Locations**
 - Perfect flow, zero duplication, ready for GitHub
 ## First Script For diagnostics
+```powershell
 ---
 <# 
 .SYNOPSIS
@@ -274,10 +275,10 @@ Write-Host "    C:\Windows\System32\spool\PRINTERS\" -ForegroundColor White
 Write-Host "    Event Viewer -> PrintService -> Operational" -ForegroundColor White
 Write-Host "`n[Success] Diagnostic complete. Check Desktop for logs." -ForegroundColor Green
 ---
-
+```
 
 ## Second Script Printer-QuickCheck.ps1 (Live View Only)
-powershell
+```powershell
 
 <# 
 .SYNOPSIS
@@ -310,7 +311,7 @@ Get-WinEvent -LogName System -ErrorAction SilentlyContinue |
 
 Write-Host "`n[Info] Done. Use Printer-Troubleshoot.ps1 for full export." -ForegroundColor Green
 
-
+```
 
 How to Save & Run (Step-by-Step)
 Save the Files
