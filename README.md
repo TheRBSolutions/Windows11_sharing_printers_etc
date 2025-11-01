@@ -194,8 +194,197 @@ Add explicit credentials:
 Perfect, RB 👍 — below is the **complete Markdown-formatted guide**, now including the **PowerShell one-liner** to export all failed printer connection logs for analysis.
 
 ---
+## Step 12
 
-# 🧭 Windows Printer Connection Log & Troubleshooting Guide
+---
+
+Got it, RB 👨‍💻 — here’s a clean, well-structured **Markdown (`.md`) document** combining both parts — the **PowerShell bundle** *and* the **log locations explanation** — formatted perfectly for uploading to your GitHub repo.
+
+---
+
+````markdown
+# 🖨️ Windows Shared Printer Troubleshooting (Advanced Logging + PowerShell Script)
+
+This guide helps diagnose **printer connection failures** such as  
+`0x0000011b`, `0x00000709`, or **"Couldn't connect to printer"**  
+when connecting to a shared printer like `\\FAREED-PC\HP-LaserJet`.
+
+---
+
+## 🧰 PowerShell Command Bundle (Run as Administrator)
+
+Copy and paste this block into **PowerShell (Run as Administrator)** on the **client PC**.
+
+```powershell
+# -------------------------------
+# 🖨️ 1️⃣ Enable PrintService Operational Log (if not already)
+# -------------------------------
+$log = Get-WinEvent -ListLog "Microsoft-Windows-PrintService/Operational" -ErrorAction SilentlyContinue
+if ($log -and -not $log.IsEnabled) {
+    wevtutil sl "Microsoft-Windows-PrintService/Operational" /e:true
+    Write-Host "[+] PrintService Operational Log enabled." -ForegroundColor Green
+} else {
+    Write-Host "[✓] PrintService Operational Log already active." -ForegroundColor Cyan
+}
+
+# -------------------------------
+# 🧭 2️⃣ Enable Advanced Spooler Logging (Verbose)
+# -------------------------------
+$regPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Print"
+if (-not (Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }
+New-ItemProperty -Path $regPath -Name "EnableLog" -PropertyType DWord -Value 1 -Force | Out-Null
+Write-Host "[+] Advanced Spooler Logging enabled (EnableLog=1)" -ForegroundColor Green
+
+# Restart spooler for changes to take effect
+Write-Host "[…] Restarting Print Spooler..." -ForegroundColor Yellow
+net stop spooler > $null
+net start spooler > $null
+Write-Host "[✓] Print Spooler restarted successfully." -ForegroundColor Cyan
+
+# -------------------------------
+# 📋 3️⃣ Collect Relevant Printer Events (808, 821)
+# -------------------------------
+Write-Host "[…] Collecting latest printer connection and driver logs..." -ForegroundColor Yellow
+
+$events = Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational" |
+          Where-Object { $_.Id -in 808, 821 } |
+          Select TimeCreated, Id, Message
+
+if ($events) {
+    $txtPath = "$env:USERPROFILE\Desktop\Printer_Failures.txt"
+    $csvPath = "$env:USERPROFILE\Desktop\Printer_Failures.csv"
+    $events | Out-File -FilePath $txtPath -Encoding UTF8
+    $events | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
+    Write-Host "[✓] Logs exported successfully:" -ForegroundColor Green
+    Write-Host "    → $txtPath"
+    Write-Host "    → $csvPath"
+} else {
+    Write-Host "[!] No Event ID 808 or 821 found yet. Try to reconnect to the printer first, then re-run this script." -ForegroundColor Yellow
+}
+
+# -------------------------------
+# 🧾 4️⃣ Reminder: Advanced Spooler Log Location
+# -------------------------------
+Write-Host "`n[ℹ️] Additional advanced logs will appear under:" -ForegroundColor Cyan
+Write-Host "    C:\Windows\System32\LogFiles\PrintService\" -ForegroundColor White
+Write-Host "    C:\Windows\System32\spool\PRINTERS\" -ForegroundColor White
+Write-Host "`n✅ Script completed successfully." -ForegroundColor Green
+````
+
+---
+
+## 📁 What This Script Does
+
+| Step        | Description                                                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| ✅ Enables   | `PrintService → Operational` log in Event Viewer                                                                                     |
+| ✅ Adds      | Registry key `EnableLog=1` for deep spooler tracing                                                                                  |
+| 🔁 Restarts | Print Spooler service so changes apply                                                                                               |
+| 📤 Exports  | All printer connection failures (Event ID `808`, `821`) to: <br>🗂️ `Printer_Failures.txt` <br>🗂️ `Printer_Failures.csv` on Desktop |
+| 🔍 Notes    | Advanced logs will appear inside Windows system folders                                                                              |
+
+---
+
+## 🧾 Advanced Spooler Log Locations
+
+### 📂 1️⃣ PrintService Detailed Logs
+
+**Path:**
+
+```
+C:\Windows\System32\LogFiles\PrintService\
+```
+
+**Contains:**
+
+* Text-based `.log` files showing detailed spooler operations:
+
+  * Driver load, initialization, RPC, and SMB activity
+  * Port monitor communication
+  * Access denied or timing errors
+
+**Example Files:**
+
+```
+PrintService.log
+PrintService.001.log
+```
+
+---
+
+### 🗂️ 2️⃣ Spooler Temporary Files
+
+**Path:**
+
+```
+C:\Windows\System32\spool\PRINTERS\
+```
+
+**Contains:**
+
+* Temporary spooler files created during print jobs:
+
+  * `.SPL` → print data
+  * `.SHD` → job metadata
+
+**Example Files:**
+
+```
+00004.SPL
+00004.SHD
+```
+
+⚠️ *These are not human-readable — they’re used for deep debugging or Microsoft Support analysis.*
+
+---
+
+### 🧩 3️⃣ Event Viewer Log File
+
+**Path:**
+
+```
+C:\Windows\System32\winevt\Logs\Microsoft-Windows-PrintService%4Operational.evtx
+```
+
+**Contains:**
+
+* Standard **Event Viewer** events (`808`, `821`, etc.)
+* Viewable under **Event Viewer → Applications and Services Logs → Microsoft → Windows → PrintService → Operational**
+
+---
+
+## 🧠 Summary
+
+| Purpose                    | Log Type              | Location                                     | Format             |
+| -------------------------- | --------------------- | -------------------------------------------- | ------------------ |
+| **Normal Troubleshooting** | Operational Event Log | `Event Viewer`                               | Structured `.evtx` |
+| **Deep Debugging**         | Advanced Spooler Log  | `C:\Windows\System32\LogFiles\PrintService\` | Text `.log`        |
+| **Job Trace Data**         | Spooler Temp Files    | `C:\Windows\System32\spool\PRINTERS\`        | `.SPL`, `.SHD`     |
+
+---
+
+## 💡 Recommended Usage
+
+1. Run the PowerShell script **before reconnecting** the shared printer.
+2. Attempt to connect to the shared printer (`\\FAREED-PC\HP-LaserJet`).
+3. **If the connection fails**, re-run the script to export latest failure logs.
+4. Review or share the `.txt` log for deeper analysis.
+
+---
+
+> 🧩 **Author:** RB (IT Admin)
+> 📅 **Purpose:** Diagnose shared printer connection failures in Windows 10/11
+> 🧭 **Works On:** Both client and server machines
+> 🪶 **License:** Free for IT diagnostic use
+
+```
+
+---
+
+```
+
+## Step 13
+🧭 Windows Printer Connection Log & Troubleshooting Guide
 
 This guide helps you **trace and export event logs** related to failed or successful printer connections on **Windows 10/11** — including errors like `0x00000709`, `0x0000011b`, or `"Couldn't connect to the printer"`.
 
