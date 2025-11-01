@@ -190,7 +190,7 @@ Add explicit credentials:
 - **Username:** host PC login username
 - **Password:** host PC login password
 
-## 🔐 Step 11:
+## 🔐 Step 11: Final Debugging 
 Here is the **final, clean, non-redundant Markdown document** — fully updated per your request:
 
 - **A (Main Script)**: Now includes **Event ID 616** (connection failed – RPC/SMB)
