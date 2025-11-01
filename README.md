@@ -191,27 +191,184 @@ Add explicit credentials:
 - **Password:** host PC login password
 
 ## 🔐 Step 11:
-🧭 1️⃣ Event Viewer — Printer Connection Logs
-📂 Path 1: Operational Printer Logs
+Perfect, RB 👍 — below is the **complete Markdown-formatted guide**, now including the **PowerShell one-liner** to export all failed printer connection logs for analysis.
 
-Open Event Viewer →
-Applications and Services Logs → Microsoft → Windows → PrintService → Operational
+---
+
+# 🧭 Windows Printer Connection Log & Troubleshooting Guide
+
+This guide helps you **trace and export event logs** related to failed or successful printer connections on **Windows 10/11** — including errors like `0x00000709`, `0x0000011b`, or `"Couldn't connect to the printer"`.
+
+---
+
+## 🧭 1️⃣ Event Viewer — Printer Connection Logs
+
+### 📂 Path 1: Operational Printer Logs
+
+**Open Event Viewer →**
+`Applications and Services Logs → Microsoft → Windows → PrintService → Operational`
 
 If you don’t see it:
+➡️ Right-click **PrintService → Operational → Enable Log**
 
-Right-click PrintService → Operational → Enable Log
+Once enabled, this log records **all printer connection, driver, and spooler events**.
 
-Now this log records all printer connection, driver, and spooler events.
+---
 
-📋 Key Event IDs to Check
-Event ID	Meaning
-808	Print queue created successfully
-819 / 808	Client printer connection attempted
-616 / 808 / 808	Connection or driver install failed
-821	Printer driver installation failure
-808 / 821 / 808	“Couldn’t connect to printer” or 0x00000709 / 0x0000011b
-307	Job sent successfully (for testing print)
-310 / 372	Print job failed or incomplete
+### 📋 Key Event IDs to Check
+
+| **Event ID**        | **Meaning**                                                  |
+| ------------------- | ------------------------------------------------------------ |
+| **808**             | Print queue created successfully                             |
+| **819 / 808**       | Client printer connection attempted                          |
+| **616 / 808 / 808** | Connection or driver installation failed                     |
+| **821**             | Printer driver installation failure                          |
+| **808 / 821 / 808** | “Couldn’t connect to printer” or `0x00000709` / `0x0000011b` |
+| **307**             | Print job sent successfully (for test prints)                |
+| **310 / 372**       | Print job failed or incomplete                               |
+
+📌 **Tip:** Look for **Event ID 821 or 808** when troubleshooting connection or driver issues.
+They will show:
+
+* The printer path (`\\FAREED-PC\HP-LaserJet`)
+* The **error code** (`0x0000011b`, etc.)
+* The **user** attempting the connection
+
+---
+
+## 🧭 2️⃣ System Event Logs
+
+**Path:**
+`Event Viewer → Windows Logs → System`
+
+Then filter for **Sources** like:
+
+* `PrintService`
+* `Spooler`
+* `SharedAccess_NAT` (for SMB/firewall issues)
+
+🧰 PowerShell quick check:
+
+```powershell
+Get-WinEvent -LogName System | Where-Object {$_.ProviderName -match "Print"}
+```
+
+---
+
+## 🧭 3️⃣ Security Logs (Optional)
+
+If auditing is enabled:
+
+**Path:**
+`Event Viewer → Windows Logs → Security`
+
+Check for:
+
+* **Event ID 4625** — Failed network logon (bad credentials)
+* **Event ID 5140** — Network share accessed (`\\FAREED-PC`)
+
+---
+
+## 🧰 4️⃣ PowerShell Quick Checks
+
+Get the **last 20 printer-related events**:
+
+```powershell
+Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational" -MaxEvents 20 |
+Select TimeCreated, Id, LevelDisplayName, Message | Format-Table -AutoSize
+```
+
+Filter **only failed installs/connections (821, 808):**
+
+```powershell
+Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational" |
+Where-Object {$_.Id -in 821,808} |
+Select TimeCreated, Message | Format-List
+```
+
+---
+
+## 💾 5️⃣ Export Failed Printer Logs (One-Liner)
+
+To automatically export **all failed printer connection logs (Event ID 808, 821, etc.)** into a text or CSV file:
+
+### ▶ Export to `.txt`:
+
+```powershell
+Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational" |
+Where-Object {$_.Id -in 808,821} |
+Select TimeCreated, Id, Message |
+Out-File "$env:USERPROFILE\Desktop\Printer_Failures.txt"
+```
+
+### ▶ Export to `.csv`:
+
+```powershell
+Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational" |
+Where-Object {$_.Id -in 808,821} |
+Select TimeCreated, Id, Message |
+Export-Csv "$env:USERPROFILE\Desktop\Printer_Failures.csv" -NoTypeInformation -Encoding UTF8
+```
+
+✅ **Output:**
+Your log file will appear on the **Desktop** as:
+
+* `Printer_Failures.txt`
+* or `Printer_Failures.csv`
+
+---
+
+## 🧾 6️⃣ (Optional) Enable Advanced Logging (Spooler Verbose Mode)
+
+For deep debugging:
+
+1. Open **Registry Editor**
+2. Navigate to:
+
+   ```
+   HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print
+   ```
+3. Create a **DWORD (32-bit)** value:
+
+   ```
+   EnableLog
+   ```
+
+   Set **Value = 1**
+4. Restart **Print Spooler**:
+
+   ```powershell
+   net stop spooler
+   net start spooler
+   ```
+
+📁 Logs appear under:
+
+```
+C:\Windows\System32\LogFiles\PrintService
+```
+
+and
+
+```
+C:\Windows\System32\spool\PRINTERS
+```
+
+---
+
+## ✅ Summary: Where to Check Failed Printer Connection Events
+
+| **Location**               | **Path**                               | **What You’ll Find**                        |
+| -------------------------- | -------------------------------------- | ------------------------------------------- |
+| PrintService → Operational | Microsoft → Windows → PrintService     | Detailed printer connection + driver events |
+| Windows Logs → System      | Core printer and spooler errors        |                                             |
+| Windows Logs → Security    | Authentication/SMB permission failures |                                             |
+| PowerShell (Get-WinEvent)  | Fast export of logs to text or CSV     |                                             |
+
+---
+
+Would you like me to include an **automated PowerShell script version** (`.ps1`) that collects all these logs, exports them, and optionally clears the old entries for a clean diagnostic run?
+
 
 ---
 
