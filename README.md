@@ -93,17 +93,60 @@ Enable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -All -NoRestart
 
 ---
 
-## 🧰 Step 4: Group Policy Fixes
 
-1. Run `gpedit.msc`
-2. Navigate to: **Computer Configuration > Administrative Templates > Printers**
-3. Configure:
-   - **Point and Print Restrictions** → Enabled
-     - Set prompts to: *Do not show warning or elevation prompt*
-     - Add trusted server name (e.g., FAREED-PC)
-   - **Package Point and Print - Approved Servers** → Disabled
+-----
 
-Update policies:
+
+## 🧱 Step 4: Consolidated Print Fix Steps
+
+These steps should be applied to the Client PC (the one connecting to the shared printer).
+
+1. ⚙️ Group Policy Fix (Client PC)
+
+    Press Win + R, type gpedit.msc, and press Enter.
+
+    Navigate to: Computer Configuration → Administrative Templates → Printers.
+
+    Double-click Point and Print Restrictions and set it to Enabled.
+
+        Set the security prompts to: "Do not show warning or elevation prompt".
+
+        Check the box "Users can only point and print to these servers".
+
+        Click the Show button next to the server list and add your print server name:
+
+        FAREED-PC
+
+    Double-click Package Point and Print - Approved Servers and set it to Disabled (if you are not using Package Point and Print).
+
+2. 🔄 Update Policies
+
+    Press Win + R, type cmd, and press Enter to open the Command Prompt.
+
+    Run the command to apply the changes immediately:
+    Bash
+
+    gpupdate /force
+
+And here is a reminder of the necessary Host (Server) Fix (applied to FAREED-PC):
+
+3. 💾 Host (Server) Fix (FAREED-PC)
+
+    Create a file named Host_Fix.reg containing the following text:
+    Code snippet
+
+    Windows Registry Editor Version 5.00
+
+    [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print]
+    "RpcAuthnLevelPrivacyEnabled"=dword:00000000
+    "CopyFilesPolicy"=dword:00000001
+    "RestrictDriverInstallationToAdministrators"=dword:00000000
+
+    Double-click Host_Fix.reg to merge the settings.
+
+    Restart the Host PC (FAREED-PC).
+
+By completing these steps on both the client and server, you should successfully address common network printing errors related to the PrintNightmare security updates.Update policies:
 ```bash
 gpupdate /force
 ```
