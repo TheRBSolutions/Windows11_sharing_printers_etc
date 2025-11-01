@@ -1,5 +1,37 @@
 # Windows11_sharing_printers_etc
 
+# 🖨️ Network Printer "Couldn't Connect" — Full Troubleshooting Guide
+
+**For Windows 10 & Windows 11 — Unified IT Admin Edition**
+
+---
+
+## 🔍 Overview
+
+This guide resolves **“Couldn’t connect to the printer”** or **Error 0x00000709** issues caused by Windows security updates (PrintNightmare hardening) breaking traditional LAN printer sharing.
+
+---
+
+## 🧩 Step 1 — Registry Fix (RPC Authentication Level)
+
+### 1.1. Host (Server) Fixes
+**Apply this to the PC sharing the printer.**
+
+This script disables strict RPC privacy and allows non-admin driver installation from the host.
+
+```reg
+; Save as Host_Fix.reg and run
+Windows Registry Editor Version 5.00
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print]
+; Step 1: Disables strict RPC encryption privacy check
+"RpcAuthnLevelPrivacyEnabled"=dword:00000000
+; Step 1: Allows remote copying of printer driver files (optional but helpful)
+"CopyFilesPolicy"=dword:00000001
+; Step 15: Allows non-admin clients to install drivers from this server
+"RestrictDriverInstallationToAdministrators"=dword:00000000
+
+=========================================================================================
 Excellent! Generating the unified Registry Script (.reg file) to apply the critical fixes quickly on both the host and client PCs.
 
 Since the required registry values differ slightly between the Host (Server) and the Client, I will generate two separate scripts for clarity and safety.
