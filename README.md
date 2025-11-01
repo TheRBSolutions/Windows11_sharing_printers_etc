@@ -196,6 +196,7 @@ Add explicit credentials:
 
 | ✓ | Task |
 |---|------|
+| ☐ | Profiles updated to private |
 | ☐ | Host Registry applied & Spooler restarted |
 | ☐ | Client Registry applied & Spooler restarted |
 | ☐ | SMB Signing disabled & Firewall rules applied |
