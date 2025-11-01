@@ -199,51 +199,54 @@ Here is the **final, clean, non-redundant Markdown document** — fully updated 
 - Added `net stop spooler && net start spooler` in **Manual Section**
 - Added **"helpline" note** under **Log Locations**
 - Perfect flow, zero duplication, ready for GitHub
-
+## First Script For diagnostics
 ---
+<# 
+.SYNOPSIS
+  Full diagnostic for shared printer connection failures (0x0000011b, 0x00000709, etc.)
+.DESCRIPTION
+  - Enables PrintService Operational log
+  - Enables verbose spooler logging (EnableLog=1)
+  - Restarts Print Spooler
+  - Exports Event IDs 616, 808, 821 to Desktop (TXT + CSV)
+  - Shows log locations
+.NOTES
+  Author: RB (IT Admin)
+  Run as: Administrator
+#>
 
-```markdown
-# 🖨️ Windows Shared Printer Troubleshooting Guide
-
-**Diagnose connection failures** like `0x0000011b`, `0x00000709`, or **"Couldn't connect to printer"**  
-*(e.g., `\\FAREED-PC\HP-LaserJet`)*
-
----
-
-## 🧰 1. One-Click Diagnostic Script (Run as **Administrator**)
-
-> **Copy & paste** this entire block into **PowerShell (Admin)**.
-
-```powershell
 # -------------------------------
-# 1️⃣ Enable PrintService Operational Log
+# 1. Enable PrintService Operational Log
 # -------------------------------
 $log = Get-WinEvent -ListLog "Microsoft-Windows-PrintService/Operational" -ErrorAction SilentlyContinue
 if ($log -and -not $log.IsEnabled) {
     wevtutil sl "Microsoft-Windows-PrintService/Operational" /e:true
     Write-Host "[+] PrintService Operational Log enabled." -ForegroundColor Green
 } else {
-    Write-Host "[✓] PrintService Operational Log already active." -ForegroundColor Cyan
+    Write-Host "[Check] PrintService Operational Log already active." -ForegroundColor Cyan
 }
 
 # -------------------------------
-# 2️⃣ Enable Advanced Spooler Logging (Verbose)
+# 2. Enable Advanced Spooler Logging
 # -------------------------------
 $regPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Print"
 if (-not (Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }
 New-ItemProperty -Path $regPath -Name "EnableLog" -PropertyType DWord -Value 1 -Force | Out-Null
 Write-Host "[+] Advanced Spooler Logging enabled (EnableLog=1)" -ForegroundColor Green
 
-# Restart spooler
-Write-Host "[…] Restarting Print Spooler..." -ForegroundColor Yellow
+# -------------------------------
+# 3. Restart Print Spooler
+# -------------------------------
+Write-Host "[Process] Restarting Print Spooler..." -ForegroundColor Yellow
 net stop spooler > $null 2>&1
+Start-Sleep -Seconds 2
 net start spooler > $null 2>&1
-Write-Host "[✓] Print Spooler restarted." -ForegroundColor Cyan
+Write-Host "[Check] Print Spooler restarted." -ForegroundColor Cyan
 
 # -------------------------------
-# 3️⃣ Export Key Failure Events (616, 808, 821)
+# 4. Export Key Failure Events (616, 808, 821)
 # -------------------------------
-Write-Host "[…] Exporting connection & driver failure logs..." -ForegroundColor Yellow
+Write-Host "[Export] Collecting Event IDs 616, 808, 821..." -ForegroundColor Yellow
 
 $events = Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational" -ErrorAction SilentlyContinue |
           Where-Object { $_.Id -in 616, 808, 821 } |
@@ -254,24 +257,96 @@ if ($events) {
     $csvPath = "$env:USERPROFILE\Desktop\Printer_Failures.csv"
     $events | Out-File -FilePath $txtPath -Encoding UTF8
     $events | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-    Write-Host "[✓] Logs exported:" -ForegroundColor Green
-    Write-Host "    → $txtPath"
-    Write-Host "    → $csvPath"
+    Write-Host "[Check] Logs exported:" -ForegroundColor Green
+    Write-Host "    -> $txtPath"
+    Write-Host "    -> $csvPath"
 } else {
-    Write-Host "[!] No Event ID 616, 808, or 821 found. Try reconnecting the printer, then re-run." -ForegroundColor Yellow
+    Write-Host "[Warning] No Event ID 616, 808, or 821 found." -ForegroundColor Yellow
+    Write-Host "    -> Try reconnecting the printer, then re-run." -ForegroundColor Yellow
 }
 
 # -------------------------------
-# 4️⃣ Log Locations Reminder
+# 5. Log Locations Reminder
 # -------------------------------
-Write-Host "`n[ℹ️] Advanced logs will appear in:" -ForegroundColor Cyan
+Write-Host "`n[Info] Advanced logs are saved to:" -ForegroundColor Cyan
 Write-Host "    C:\Windows\System32\LogFiles\PrintService\" -ForegroundColor White
 Write-Host "    C:\Windows\System32\spool\PRINTERS\" -ForegroundColor White
-Write-Host "    Event Viewer → PrintService → Operational" -ForegroundColor White
-Write-Host "`n✅ Script completed. Check Desktop for logs." -ForegroundColor Green
-```
-
+Write-Host "    Event Viewer -> PrintService -> Operational" -ForegroundColor White
+Write-Host "`n[Success] Diagnostic complete. Check Desktop for logs." -ForegroundColor Green
 ---
+
+
+## Second Script Printer-QuickCheck.ps1 (Live View Only)
+powershell
+
+<# 
+.SYNOPSIS
+  Quick live inspection of printer events (no file export)
+.DESCRIPTION
+  Shows:
+  - Last 20 PrintService events
+  - Failures: 616, 808, 821
+  - System log Print/Spooler entries
+.NOTES
+  Run anytime (Admin recommended for full view)
+#>
+
+Write-Host "`n[Live Check] Last 20 PrintService events:" -ForegroundColor Cyan
+Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational" -MaxEvents 20 -ErrorAction SilentlyContinue |
+    Select-Object TimeCreated, Id, LevelDisplayName, Message |
+    Format-Table -AutoSize
+
+Write-Host "`n[Failures] Event IDs 616, 808, 821:" -ForegroundColor Yellow
+Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational" -ErrorAction SilentlyContinue |
+    Where-Object { $_.Id -in 616, 808, 821 } |
+    Select-Object TimeCreated, Id, Message |
+    Format-List
+
+Write-Host "`n[System Log] Print/Spooler errors:" -ForegroundColor Magenta
+Get-WinEvent -LogName System -ErrorAction SilentlyContinue |
+    Where-Object { $_.ProviderName -match "Print|Spooler" } |
+    Select-Object TimeCreated, Id, Message |
+    Format-List
+
+Write-Host "`n[Info] Done. Use Printer-Troubleshoot.ps1 for full export." -ForegroundColor Green
+
+
+
+How to Save & Run (Step-by-Step)
+Save the Files
+
+Open Notepad (or VS Code)
+Copy first script → Paste → Save As
+→ Printer-Troubleshoot.ps1
+→ Save as type: All Files
+Copy second script → Paste → Save As
+→ Printer-QuickCheck.ps1
+
+
+Save both in: C:\Scripts\ (create folder) or Desktop
+
+
+Run the Scripts
+Option 1: Right-Click (Easiest)
+
+Right-click .ps1 file → "Run with PowerShell"
+If blocked → use Option 2
+
+Option 2: PowerShell (Admin)
+powershell
+
+# Allow local scripts (once)
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+
+# Run full diagnostic
+.\Printer-Troubleshoot.ps1
+
+# Run quick check
+.\Printer-QuickCheck.ps1
+
+
+
+
 
 ## 🔍 2. Key Event IDs to Monitor
 
@@ -302,33 +377,9 @@ Write-Host "`n✅ Script completed. Check Desktop for logs." -ForegroundColor Gr
 
 ---
 
-## 🧰 4. Quick Live Checks (Optional – No Export)
 
-> Use **after** main script for real-time inspection.
 
-```powershell
-# Last 20 printer events
-Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational" -MaxEvents 20 |
-  Select TimeCreated, Id, LevelDisplayName, Message | Format-Table -AutoSize
-```
 
-```powershell
-# Filter failures: 616 (RPC/SMB), 808, 821
-Get-WinEvent -LogName "Microsoft-Windows-PrintService/Operational" |
-  Where-Object {$_.Id -in 616, 808, 821} |
-  Select TimeCreated, Id, Message | Format-List
-```
-
-```powershell
-# System log: Print/Spooler errors
-Get-WinEvent -LogName System | Where-Object {$_.ProviderName -match "Print|Spooler"} |
-  Select TimeCreated, Id, Message | Format-List
-```
-
----
-
-## 🛠️ 5. (Optional) Manual Verbose Logging  
-> **Only if PowerShell Admin is blocked**
 
 ## 🧾 6️⃣ (Optional) Enable Advanced Logging (Spooler Verbose Mode)
 
